@@ -23,3 +23,8 @@ htmlcov/
 .idea/
 *.swp
 .DS_Store
+
+# 环境变量与密钥:任何 .env 都不许进仓库(密钥只放本地环境变量或未跟踪的 .env)
+.env
+.env.*
+!.env.example
