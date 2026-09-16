@@ -394,7 +394,13 @@ def cmd_adaptive(args: argparse.Namespace) -> int:
 # 改写条件刻意收紧成「负号后跟数字或小数点」，因为要保住一个反例：
 # 用户漏写值时（`--spectrum --eta 0.5`）必须仍然老实报错，
 # 不能把 `--eta` 当成谱值吞掉、把一个用法错误变成一个静默的错误结果。
-_DASH_VALUE_OPTIONS = frozenset({"--spectrum"})
+#
+# 哪些选项要纳入：**取值天然可能以 `-` 开头的那些**。
+# `--spectrum "-1,-4"` 之外还有 `--matrix "-1.5,0;0,0.5"`（同一个坑，
+# `-1.5,0;0,0.5` 同样不匹配"纯负数"正则）。
+# 数值型选项（`--eta -0.5`）本来就被 argparse 认，不必管；
+# `--fracs` / `--betas` 的取值是正的比率，写负号属于用户笔误，让它报错更好。
+_DASH_VALUE_OPTIONS = frozenset({"--spectrum", "--matrix"})
 _DASH_VALUE_RE = re.compile(r"^-[.\d]")
 
 

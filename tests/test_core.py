@@ -309,6 +309,23 @@ class TestNormalizeDashValues(unittest.TestCase):
                          ["--spectrum", "--eta", "0.5"])
         self.assertEqual(norm(["--spectrum"]), ["--spectrum"])
 
+    def test_matrix_is_covered_too(self):
+        """`--matrix "-1.5,0;0,0.5"` 是同一个坑：取值不以纯负数的形式出现。
+
+        实测（CPython 3.13.15）：修之前 `transient --matrix "-1.5,0;0,0.5"`
+        直接 `error: argument --matrix: expected one argument`。
+        """
+        from stability_lens.cli import normalize_dash_values as norm
+        self.assertEqual(norm(["--matrix", "-1.5,0;0,0.5"]),
+                         ["--matrix=-1.5,0;0,0.5"])
+        self.assertEqual(norm(["transient", "--matrix", "-1,0;0,-2"]),
+                         ["transient", "--matrix=-1,0;0,-2"])
+        # 非负开头不动；漏写值也不能被吞
+        self.assertEqual(norm(["--matrix", "1.5,0;0,0.5"]),
+                         ["--matrix", "1.5,0;0,0.5"])
+        self.assertEqual(norm(["--matrix", "--steps", "5"]),
+                         ["--matrix", "--steps", "5"])
+
 
 class TestCli(unittest.TestCase):
     def run_cli(self, argv):
