@@ -9,6 +9,7 @@ description = "增量式算法的离散稳定性体检：步长上界 eta_max、
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+authors = [{ name = "OGAS19171976", email = "OGAS19171976@users.noreply.github.com" }]
 keywords = [
     "optimization",
     "stability",
@@ -27,6 +28,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
@@ -41,6 +43,10 @@ dev = ["pytest>=7"]
 
 [project.scripts]
 stability-lens = "stability_lens.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/OGAS19171976/stability-lens"
+Issues = "https://github.com/OGAS19171976/stability-lens/issues"
 
 [tool.setuptools]
 packages = ["stability_lens"]

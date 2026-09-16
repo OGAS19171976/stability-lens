@@ -61,7 +61,7 @@ stability-lens check --rule gd --spectrum "1,4" --eta 0.6 || echo "先降学习�
 cd stability-lens
 python -m stability_lens check --rule gd --spectrum "1,4"
 python -m stability_lens selftest
-python -m unittest discover -s tests        # 46 项测试，纯标准库
+python -m unittest discover -s tests        # 145 项测试，纯标准库
 python -m pytest tests -q                   # 同一套也可以用 pytest 跑
 ```
 
@@ -71,9 +71,15 @@ python -m pytest tests -q                   # 同一套也可以用 pytest 跑
 **方式 B：正常安装**（需要 setuptools，即常规的 pip 环境）
 
 ```bash
-pip install -e .
+pip install -e .                                                   # 本地开发
+pip install git+https://github.com/OGAS19171976/stability-lens.git # 从 GitHub
+pip install ".[numpy]"    # predict / monitor / transient / adaptive 需要 numpy
 stability-lens check --rule heavy-ball --beta 0.9 --lambda-max 4
 ```
+
+依赖是**分层**的：`core` / `diagnose` / `selftest` 零依赖，只用标准库；
+`numpy` 支撑数值与在线监控；`torch` 只在 `torch_backend` 里需要
+（双重反向传播算 HVP）。所以"装不上 torch"不会妨碍体检本身。
 
 命令行输出会自动切到 UTF-8（Windows 的 GBK 控制台也不会因 `η`/`ρ` 崩掉）。
 
@@ -427,7 +433,7 @@ python -m pytest tests/test_torch_backend.py -v      # 有 torch 时自动跑，
 
 ## 路线图
 
-- [x] 0.1.0 — 内核 + 体检 + CLI + 46 项测试 + 25 项数值证据
+- [x] 0.1.0 — 内核 + 体检 + CLI + 测试 + 25 项数值证据
 - [x] 0.3.0 — 从数据到 `λ_max`：阻尼牛顿训到局部极小 → HVP + 幂迭代估 `λ_max`
       → 预测 `η_max` → 与实测边界对拍（真实宽表上偏差 0.01%–0.03%）
 - [x] 0.4.0 — **在线监控**：训练中逐步估 `λ_max(θ_k)`，越过步长上界即告警
@@ -441,7 +447,11 @@ python -m pytest tests/test_torch_backend.py -v      # 有 torch 时自动跑，
 
 ## 相关
 
-- `incremental-ode/` — 理论底稿、七步流程、文章《连续时间稳定 ≠ 离散稳定》与四个交互演示
+- [llm-eval-toolkit](https://github.com/OGAS19171976/llm-eval-toolkit) —— 评估工具包。
+  它的 `lev stability` 子命令封装本包的 `check` / `predict`，把"这个学习率能不能跑"
+  和"模型好不好"放进同一份评估报告；没装本包时那条子命令会给出安装提示，
+  其余功能不受影响（可选依赖是懒加载的）。
+- `incremental-ode/`（另一个本地仓库）— 理论底稿、七步流程、文章《连续时间稳定 ≠ 离散稳定》与四个交互演示
 - 口径前提：Robbins–Monro / Kushner–Clark 条件（`h` Lipschitz、`Ση=∞` 且 `Ση²<∞`、
   ODE 有紧的渐近稳定吸引集）
 
