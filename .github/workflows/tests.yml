@@ -1,0 +1,38 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 只跑 Linux 与 Windows:这个包涉及数值稳定性与浮点边界,
+        # 那两件事在这两类平台上的差别最大。macOS 属于 POSIX,加进来只是烧时长。
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.12", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # 核心模块(core / diagnose / selftest)零依赖,只用标准库;
+      # numpy 是 predict / monitor / transient / adaptive 需要的。
+      - name: 安装
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[numpy,dev]"
+
+      # **刻意不装 torch**:torch_backend 那几条用例会自己 skip(它们测的是
+      # 双重反向传播算 HVP),而把 torch 拖进 CI 会让每个 job 多几分钟下载,
+      # 换来的只是几条本来就该在本机跑的用例。
+      - name: 测试
+        run: pytest tests/ -q

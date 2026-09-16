@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stability-lens"
+version = "0.1.0"
+description = "增量式算法的离散稳定性体检：步长上界 eta_max、前向 Euler 绝对稳定域、Lyapunov 证书与噪声地板。"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = [
+    "optimization",
+    "stability",
+    "ode",
+    "learning-rate",
+    "dynamical-systems",
+    "stochastic-approximation",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []          # core/diagnose/selftest 零依赖，只用标准库
+
+[project.optional-dependencies]
+# predict / monitor / transient / adaptive 需要 numpy
+numpy = ["numpy>=1.24"]
+# torch_backend 需要 torch（双重反向传播算 HVP）
+torch = ["torch>=2.0"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+stability-lens = "stability_lens.cli:main"
+
+[tool.setuptools]
+packages = ["stability_lens"]
+
+[tool.setuptools.package-data]
+stability_lens = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
