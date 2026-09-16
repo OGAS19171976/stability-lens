@@ -285,6 +285,31 @@ class TestSelftest(unittest.TestCase):
         self.assertEqual(payload["failed"], 0)
 
 
+class TestNormalizeDashValues(unittest.TestCase):
+    """改写规则必须**既能修 bug、又不误伤**。"""
+
+    def test_rewrites_dash_leading_values(self):
+        from stability_lens.cli import normalize_dash_values as norm
+        self.assertEqual(norm(["--spectrum", "-1,-4"]), ["--spectrum=-1,-4"])
+        self.assertEqual(norm(["--spectrum", "-1+3i,-2"]), ["--spectrum=-1+3i,-2"])
+        self.assertEqual(norm(["check", "--spectrum", "-2"]), ["check", "--spectrum=-2"])
+
+    def test_leaves_normal_values_alone(self):
+        from stability_lens.cli import normalize_dash_values as norm
+        self.assertEqual(norm(["--spectrum", "1,4"]), ["--spectrum", "1,4"])
+        self.assertEqual(norm(["--spectrum=-1,-4"]), ["--spectrum=-1,-4"])
+        # 别的选项不动 —— 它们的取值由 argparse 自己处理
+        self.assertEqual(norm(["--eta", "-0.5"]), ["--eta", "-0.5"])
+        self.assertEqual(norm([]), [])
+
+    def test_does_not_swallow_a_missing_value(self):
+        """用户漏写值时不能被"顺手修好"成别的意思。"""
+        from stability_lens.cli import normalize_dash_values as norm
+        self.assertEqual(norm(["--spectrum", "--eta", "0.5"]),
+                         ["--spectrum", "--eta", "0.5"])
+        self.assertEqual(norm(["--spectrum"]), ["--spectrum"])
+
+
 class TestCli(unittest.TestCase):
     def run_cli(self, argv):
         buf = io.StringIO()
@@ -308,6 +333,35 @@ class TestCli(unittest.TestCase):
     def test_check_requires_spectrum(self):
         code, _ = self.run_cli(["check", "--rule", "euler"])
         self.assertEqual(code, EXIT_USAGE)
+
+    def test_spectrum_with_leading_dash_is_accepted(self):
+        """`--spectrum "-1,-4"` 必须在**所有受支持的 Python 上**都能用。
+
+        这是真实的可用性 bug，不是测试写法问题：argparse 只把「纯负数」当值，
+        而 `-1,-4` 带逗号，在 3.10~3.13 上会被当成选项、报
+        "expected one argument"。Python 3.14 删掉了那个判定，所以在
+        3.14 上本地全绿、只有 CI 的 3.10/3.12 会红。
+        """
+        code, out = self.run_cli(["check", "--rule", "euler", "--spectrum", "-1,-4"])
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("0.5", out)
+
+    def test_spectrum_complex_with_leading_dash_is_accepted(self):
+        """带虚部的写法（`-1+3i`）同样不匹配「纯负数」，一样要能过。"""
+        code, _ = self.run_cli(["check", "--rule", "euler", "--spectrum", "-1+3i,-2"])
+        self.assertEqual(code, EXIT_OK)
+
+    def test_missing_spectrum_value_still_errors(self):
+        """漏写取值时必须仍然报错，而不是被"顺手修好"成别的意思。
+
+        `--spectrum` 后面跟的是另一个选项时，改写逻辑不会动它，
+        argparse 于是照常报 usage 错误 —— 那是 `exit(2)`（抛 SystemExit），
+        不是返回一个码。`--eta` 绝不能被当成谱值吞掉：那会把一个用法错误
+        变成一个静默的错误结果，比直接报错糟得多。
+        """
+        with self.assertRaises(SystemExit) as ctx:
+            self.run_cli(["check", "--rule", "euler", "--spectrum", "--eta", "0.5"])
+        self.assertEqual(ctx.exception.code, 2)
 
     def test_check_structural_exit_code(self):
         code, _ = self.run_cli(["check", "--rule", "euler", "--spectrum", "1,4", "--eta", "0.05"])

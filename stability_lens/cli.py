@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from typing import Any, Sequence
 
@@ -375,10 +376,50 @@ def cmd_adaptive(args: argparse.Namespace) -> int:
     return EXIT_OK if ok else EXIT_GAP
 
 
+# ---------------------------------------------------------------------------
+# argparse 与「以 - 开头的取值」
+# ---------------------------------------------------------------------------
+# `--spectrum "-1,-4"` 是完全自然的写法，但它在 Python < 3.14 上会直接
+# `error: argument --spectrum: expected one argument`。
+#
+# 原因是 argparse 只把「纯负数」字面量（`^-\d+$|^-\d*\.\d+$`）当成值；
+# `-1,-4` 带逗号、`-1+3i` 带 i，都不匹配，于是被当成选项。
+# **Python 3.14 把这个判定删掉了**（`argparse._negative_number_matcher`
+# 已不存在），所以这个 bug 只在 3.10~3.13 上暴露 —— 本地 3.14 跑测试全绿，
+# 是 CI 的 3.10/3.12 才把它照出来。
+#
+# 修法：参数进 argparse 之前，把 `--spectrum <以 - 开头的数值>` 改写成
+# `--spectrum=<数值>`。等号形式无歧义，任何版本都认。
+#
+# 改写条件刻意收紧成「负号后跟数字或小数点」，因为要保住一个反例：
+# 用户漏写值时（`--spectrum --eta 0.5`）必须仍然老实报错，
+# 不能把 `--eta` 当成谱值吞掉、把一个用法错误变成一个静默的错误结果。
+_DASH_VALUE_OPTIONS = frozenset({"--spectrum"})
+_DASH_VALUE_RE = re.compile(r"^-[.\d]")
+
+
+def normalize_dash_values(argv: Sequence[str]) -> list[str]:
+    """把 `--opt -1,-4` 改写成 `--opt=-1,-4`，规避旧版 argparse 的判定。"""
+    items = list(argv)
+    out: list[str] = []
+    index = 0
+    while index < len(items):
+        token = items[index]
+        if (token in _DASH_VALUE_OPTIONS and index + 1 < len(items)
+                and _DASH_VALUE_RE.match(items[index + 1])):
+            out.append(f"{token}={items[index + 1]}")
+            index += 2
+            continue
+        out.append(token)
+        index += 1
+    return out
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     force_utf8_stdio()
     parser = build_parser()
-    args = parser.parse_args(argv)
+    raw = list(sys.argv[1:]) if argv is None else list(argv)
+    args = parser.parse_args(normalize_dash_values(raw))
     try:
         if args.command == "check":
             return cmd_check(args)
